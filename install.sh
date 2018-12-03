@@ -230,4 +230,4 @@ checks
 prepare_system
 download_node
 setup_node
-rm -rf sparkscore* 
+rm -rf sparks* 
