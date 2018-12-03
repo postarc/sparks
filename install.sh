@@ -20,8 +20,6 @@ COIN_NAME='sparks'
 COIN_PORT=8890
 RPC_PORT=8818
 PORT=$COIN_PORT
-
-
 while [ -n "$(sudo lsof -i -s TCP:LISTEN -P -n | grep $RPC_PORT)" ]
 do
 (( RPC_PORT--))
@@ -32,14 +30,10 @@ do
 (( PORT++))
 done
 echo -e "\e[32mFree MN port address:$PORT\e[0m"
-
 NODEIP=$(curl -s4 icanhazip.com)
-
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
-
 
 function download_node() {
   echo -e "Download $COIN_NAME"
@@ -114,31 +108,6 @@ function update_config() {
 masternodeprivkey=$COINKEY
 EOF
 }
-
-
-function get_ip() {
-  declare -a NODE_IPS
-  for ips in $(netstat -i | awk '!/Kernel|Iface|lo/ {print $1," "}')
-  do
-    NODE_IPS+=($(curl --interface $ips --connect-timeout 2 -s4 icanhazip.com))
-  done
-
-  if [ ${#NODE_IPS[@]} -gt 1 ]
-    then
-      INDEX=0
-      for ip in "${NODE_IPS[@]}"
-      do
-        echo ${INDEX} $ip
-        let INDEX=${INDEX}+1
-      done
-      read -e choose_ip
-      NODEIP=${NODE_IPS[$choose_ip]}
-  else
-    NODEIP=${NODE_IPS[0]}
-  fi
-}
-
-
 
 function checks() {
 if [[ $(lsb_release -d) != *16.04* ]]; then
@@ -222,7 +191,6 @@ function important_information() {
 
 function setup_node() {
   ifp_start
-  get_ip
   create_config
   create_key
   update_config
