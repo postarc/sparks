@@ -46,7 +46,6 @@ function download_node() {
 }
 
 function install_sentinel() {
-  cd $CONFIGFOLDER
   echo -e "${GREEN}Installing sentinel.${NC}"
   apt-get -y install python-virtualenv virtualenv >/dev/null 2>&1
   git clone $SENTINEL_REPO $CONFIGFOLDER/sentinel >/dev/null 2>&1
