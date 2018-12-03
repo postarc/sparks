@@ -196,6 +196,7 @@ function setup_node() {
   ifp_autorun
   important_information
   sudo ufw allow $PORT/tcp
+  chmod +x $SCRIPT_FOLDER/*  
   $COIN_DAEMON -reindex  
 }
 
