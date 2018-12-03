@@ -221,7 +221,7 @@ function setup_node() {
   ifp_autorun
   ifp_start
   important_information
-  ufw allow $PORT/tcp
+  sudo ufw allow $PORT/tcp
 }
 
 ##### Main #####
