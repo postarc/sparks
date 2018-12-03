@@ -3,24 +3,34 @@
 TMP_FOLDER=$(mktemp -d)
 CONFIG_FILE='sparks.conf'
 CONFIGFOLDER='.sparkscore'
+if [[ "$USER" == "root" ]]; then
+        HOME_FOLDER="/root/"
+		SCRIPT_FOLDER="/root/sparks"
+ else
+        HOME_FOLDER="/home/$USER/"
+		SCRIPT_FOLDER="/home/$USER/sparks"
+fi
+COIN_PATH='/usr/local/bin/'
 COIN_DAEMON='sparksd'
 COIN_CLI='sparks-cli'
 COIN_BIN_PATH='sparkscore-0.12.3/bin/'
+SENTINEL_REPO='https://github.com/SparksReborn/sentinel.git'
 COIN_TGZ='https://github.com/SparksReborn/sparkspay/releases/download/v0.12.3.2/sparkscore-0.12.3.2-linux64.tar.gz'
 COIN_ZIP='sparkscore-0.12.3.2-linux64.tar.gz'
 COIN_NAME='sparks'
 COIN_PORT=8890
-RPC_PORT=8889
-PORT=8890
+RPC_PORT=8818
+PORT=$COIN_PORT
+
 
 while [ -n "$(sudo lsof -i -s TCP:LISTEN -P -n | grep $RPC_PORT)" ]
 do
-(( RPC_PORT++))
+(( RPC_PORT--))
 done
 echo -e "\e[32mFree RPCPORT address:$RPC_PORT\e[0m"
 while [ -n "$(sudo lsof -i -s TCP:LISTEN -P -n | grep $PORT)" ]
 do
-(( PORT--))
+(( PORT++))
 done
 echo -e "\e[32mFree MN port address:$PORT\e[0m"
 
@@ -42,6 +52,17 @@ function download_node() {
   #clear
 }
 
+function install_sentinel() {
+  echo -e "${GREEN}Installing sentinel.${NC}"
+  apt-get -y install python-virtualenv virtualenv >/dev/null 2>&1
+  git clone $SENTINEL_REPO $CONFIGFOLDER/sentinel >/dev/null 2>&1
+  cd $CONFIGFOLDER/sentinel
+  virtualenv ./venv >/dev/null 2>&1
+  ./venv/bin/pip install -r requirements.txt >/dev/null 2>&1
+  echo  "* * * * * cd $CONFIGFOLDER/sentinel && ./venv/bin/python bin/sentinel.py >> $CONFIGFOLDER/sentinel.log 2>&1" > $CONFIGFOLDER/$COIN_NAME.cron
+  crontab $CONFIGFOLDER/$COIN_NAME.cron
+  rm $CONFIGFOLDER/$COIN_NAME.cron >/dev/null 2>&1
+}
 
 function create_config() {
   mkdir $CONFIGFOLDER >/dev/null 2>&1
@@ -52,46 +73,32 @@ rpcuser=$RPCUSER
 rpcpassword=$RPCPASSWORD
 rpcport=$RPC_PORT
 rpcallowip=127.0.0.1
-listen=0
+listen=1
 server=1
 daemon=1
-addnode=23.226.142.249
-addnode=80.211.235.25
-addnode=206.41.116.55
-addnode=45.32.186.31
-addnode=149.28.116.125
-addnode=95.179.148.91
-addnode=212.237.56.169
-addnode=35.237.150.41
-addnode=207.148.23.3
-addnode=167.114.128.89
-addnode=95.216.83.50
-addnode=5.53.16.133
-addnode=89.46.196.185
-addnode=45.63.34.74
-addnode=78.159.150.241
-addnode=78.97.54.58
 EOF
 }
 
 function create_key() {
+  echo -e "${YELLOW}Enter your ${RED}$COIN_NAME Masternode GEN Key${NC}."
+  read -e COINKEY
   if [[ -z "$COINKEY" ]]; then
-  ./$COIN_BIN_PATH$COIN_DAEMON -daemon
+  $COIN_PATH$COIN_DAEMON -daemon
   sleep 30
   if [ -z "$(ps axo cmd:100 | grep $COIN_DAEMON)" ]; then
-   echo -e "${GREEN}$COIN_NAME server couldn not start."
+   echo -e "${RED}$COIN_NAME server couldn not start. Check /var/log/syslog for errors.{$NC}"
    exit 1
   fi
-  COINKEY=$(./$COIN_CLI masternode genkey)
+  COINKEY=$($COIN_PATH$COIN_CLI masternode genkey)
   if [ "$?" -gt "0" ];
     then
-    echo -e "${GREEN}Wallet not fully loaded. Let us wait and try again to generate the Private Key${NC}"
+    echo -e "${RED}Wallet not fully loaded. Let us wait and try again to generate the GEN Key${NC}"
     sleep 30
-    COINKEY=$(./$COIN_CLI masternode genkey)
+    COINKEY=$($COIN_PATH$COIN_CLI masternode genkey)
   fi
-  ./$COIN_BIN_PATH$COIN_CLI stop
+  $COIN_PATH$COIN_CLI stop
 fi
-#clear
+clear
 }
 
 function update_config() {
@@ -99,13 +106,13 @@ function update_config() {
 
 masternode=1
 externalip=$NODEIP
-bind=$NODEIP
+#bind=$NODEIP
+maxconnections=256
 masternodeaddr=$NODEIP:$COIN_PORT
 port=$PORT
 masternodeprivkey=$COINKEY
 EOF
 }
-
 
 
 function get_ip() {
@@ -143,7 +150,7 @@ if [[ $EUID -eq 0 ]]; then
    exit 1
 fi
 
-if [ -n "$(pidof $COIN_DAEMON)" ] && [ -d "/home/$USER/$CONFIGFOLDER" ] ; then
+if [ -n "$(pidof $COIN_DAEMON)" ] && [ -d "$HOME_FOLDER$CONFIGFOLDER" ] ; then
   echo -e "${GREEN}$COIN_NAME is already installed.${NC}"
   exit 1
 fi
@@ -179,23 +186,22 @@ fi
 function ifp_autorun() {
 #setup cron
 crontab -l > tempcron
-echo "@reboot $COIN_DAEMON -daemon" >> tempcron
-crontab tempcron
+echo -e "@reboot $COIN_PATH$COIN_DAEMON -daemon" >> tempcron
+echo -e "*/1 * * * * $SCRIPT_FOLDER/makerun.sh" >> tempcron
+echo -e "*/30 * * * * $SCRIPT_FOLDER/checkdaemon.sh" >> tempcron
+ crontab tempcron
 rm tempcron
 }
 
 function ifp_start() {
 sleep 2
-if [ -f "/usr/local/bin/$COIN_DAEMON" ]; then
+if [ -f "$COIN_PATH$COIN_DAEMON" ]; then
 	echo -e "${GREEN}Bin files exist, skipping copy.${NC}"
 else
-	sudo chown -R root:users /usr/local/bin/
-	sudo bash -c "cp $COIN_BIN_PATH$COIN_CLI /usr/local/bin/"
-	sudo bash -c "cp $COIN_BIN_PATH$COIN_DAEMON /usr/local/bin/"
+	sudo chown -R root:users $COIN_PATH
+	sudo bash -c "cp $COIN_BIN_PATH$COIN_CLI $COIN_PATH"
+	sudo bash -c "cp $COIN_BIN_PATH$COIN_DAEMON $COIN_PATH"
 fi	
-rm -rf $COIN_BIN_PATH
-sleep 10
-$COIN_DAEMON -reindex
 }
 
 function important_information() {
@@ -214,14 +220,15 @@ function important_information() {
 }
 
 function setup_node() {
+  ifp_start
   get_ip
   create_config
   create_key
   update_config
   ifp_autorun
-  ifp_start
   important_information
   sudo ufw allow $PORT/tcp
+  $COIN_DAEMON -reindex  
 }
 
 ##### Main #####
@@ -230,4 +237,5 @@ checks
 prepare_system
 download_node
 setup_node
-rm -rf sparks* 
+install_sentinel
+rm -rf sparkscore* 
