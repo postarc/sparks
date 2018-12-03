@@ -78,6 +78,12 @@ rpcallowip=127.0.0.1
 listen=1
 server=1
 daemon=1
+masternode=1
+externalip=$NODEIP
+#bind=$NODEIP
+maxconnections=256
+masternodeaddr=$NODEIP:$COIN_PORT
+port=$PORT
 EOF
 }
 
@@ -105,13 +111,6 @@ clear
 
 function update_config() {
   cat << EOF >> $CONFIGFOLDER/$CONFIG_FILE
-
-masternode=1
-externalip=$NODEIP
-#bind=$NODEIP
-maxconnections=256
-masternodeaddr=$NODEIP:$COIN_PORT
-port=$PORT
 masternodeprivkey=$COINKEY
 EOF
 }
@@ -240,4 +239,4 @@ prepare_system
 download_node
 setup_node
 install_sentinel
-rm -rf sparkscore* 
+rm -rf sparkscore*
