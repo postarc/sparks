@@ -1,6 +1,5 @@
 #!/bin/bash
 
-TMP_FOLDER=$(mktemp -d)
 CONFIG_FILE='sparks.conf'
 CONFIGFOLDER='.sparkscore'
 if [[ "$USER" == "root" ]]; then
