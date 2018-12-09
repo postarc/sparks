@@ -71,7 +71,6 @@ rpcallowip=127.0.0.1
 listen=1
 server=1
 daemon=1
-masternode=1
 externalip=$NODEIP
 #bind=$NODEIP
 maxconnections=256
@@ -104,6 +103,7 @@ clear
 
 function update_config() {
   cat << EOF >> $CONFIGFOLDER/$CONFIG_FILE
+masternode=1  
 masternodeprivkey=$COINKEY
 EOF
 }
